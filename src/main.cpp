@@ -348,6 +348,40 @@ using GetReverseDepandancies = InsertAll<G, InitReverseDepandancies_t<S>>;
 template<typename S, typename G>
 using GetReverseDepandancies_t = Unwrap<GetReverseDepandancies<S, G>>;
 
+/*
+    PushKeyIfEmpty :: (a, List b) x List a -> List a
+    PushKeyIfEmpty (a, xs) ys = if empty xs then a : ys else ys
+*/
+
+template<typename L>
+struct Empty : std::false_type {};
+
+template<typename...Xs>
+struct Empty<List<Xs...>> : std::integral_constant<bool, (sizeof...(Xs) == 0)> {};
+
+template<typename L>
+static constexpr bool Empty_v = Empty<L>::value;
+
+template<typename E, typename L, bool = Empty_v<Value_t<E>>>
+struct PushKeyIfEmpty : Type<L> {};
+
+template<typename E, typename L>
+struct PushKeyIfEmpty<E, L, true> : Push<L, Key_t<E>> {};
+
+template<typename E, typename L>
+using PushKeyIfEmpty_t = Unwrap<PushKeyIfEmpty<E, L>>;
+
+/*
+    GetRoots :: List (System, List System) -> List System
+    GetRoots [] = []
+    GetRoots (x:xs) = if empty snd x then (fst x) : GetRoots xs else GetRoots xs
+*/
+
+template<typename L>
+using GetRoots = Fold<L, PushKeyIfEmpty_t, List<>>;
+
+template<typename L>
+using GetRoots_t = Unwrap<GetRoots<L>>;
 
 using S0 = System<0>;
 using S1 = System<1>;
@@ -415,6 +449,19 @@ int main() {
     Heights := List<System -> Height>
     #   for system, reverse depandancies in Reverse Depandancies
     #       Set at system in Heights to size of reverse depandancies
+
+    #   GetRoots...
+
+    #   GetHeights :: List (System, List System) x List (System, List System) -> List (System, std::size_t)
+    #   GetHeights ds rs = GetHeightsOf (GetRoots rs) ds List<> 0
+
+    #   GetHeightsOf :: List System x List (System, List System) x List (System, std::size_t) x std::size_t -> List (System, std::size_t)
+    #   GetHeightsOf ss ds hs h = if empty ss then hs else GetHeightsOf (Fold ss (j ds) List<>) ds (Fold ss (f h) hs) (h + 1)
+    #       where
+    #           f :: std::size_t -> System x List (System, std::size_t) -> List (System, std::size_t)
+    #           f h s hs = MapAt s hs (g h)
+    #           g :: std::size_t -> std::size_t -> std::size_t
+    #           g h i = max h i
 
 */
 
@@ -522,6 +569,9 @@ int main() {
         GetReverseDepandancies_t<Systems, Es>
     > $19;
 
+    Show<
+        GetRoots_t<GetReverseDepandancies_t<Systems, Es>>
+    > $20;
 
     return 0;
 }
